@@ -76,7 +76,7 @@
 
   <script>
     // デフォルトの初期値URL
-    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxt015sK_zqRzMHT5qbBi3gG6rQmVG5GeodLAUIIZkwMjeogy22MX9JlIFguUzTs3Ix_w/exec';
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwROaqctPSNx0M5ZoCMlNSBT1TXlLHtoSAaboaWQUg8hbwUqTBUfuf7MjP-WbdFaXxg5w/exec';
 
     window.onload = () => {
       // 保存されたURLがあれば読み込み、なければデフォルトを使う
@@ -141,7 +141,8 @@
             if (row.actual && String(row.actual).includes('分')) {
               actualTime = row.actual;
             } else if (row.actual) {
-              actualTime = row.actual + '分'; 
+              //actualTime = row.actual + '分';
+              actualTime = row.actual; 
             }
             
             card.innerHTML = `
