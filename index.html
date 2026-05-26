@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ルラップ・リンカー</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-</head>
+  </head>
 <body class="bg-gray-100 min-h-screen p-4 font-sans text-gray-800">
 
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-6 space-y-6">
@@ -75,20 +75,29 @@
   </div>
 
   <script>
-    const MY_GAS_URL = 'https://script.google.com/macros/s/AKfycbxt015sK_zqRzMHT5qbBi3gG6rQmVG5GeodLAUIIZkwMjeogy22MX9JlIFguUzTs3Ix_w/exec';
+    // デフォルトの初期値URL（未保存のとき最初に表示されるURL）
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwb_3S35E2QGdDFsbW8w2H2IfOJ8DHepx4nwmrEAhXz9Xh14UyWxZT-78v6nH0FeEgcJw/exec';
 
     // ページ読み込み時に自動でデータを読み込む
     window.onload = () => {
-      document.getElementById('gasUrl').value = MY_GAS_URL;
+      // ブラウザ（スマホ）に保存されているURLを読み出す。なければ初期値を使う
+      const savedUrl = localStorage.getItem('saved_gas_url') || DEFAULT_GAS_URL;
+      document.getElementById('gasUrl').value = savedUrl;
       loadLatest();
     };
 
+    // 入力欄のURLが変更されたら、ブラウザ（スマホ）に自動保存する
     function saveUrl() {
-      // ハードコードするため、この関数は空っぽでOK
+      const inputUrl = document.getElementById('gasUrl').value.trim();
+      if (inputUrl) {
+        localStorage.setItem('saved_gas_url', inputUrl);
+        loadLatest(); // URLが変わったら自動で履歴も再読み込みする
+      }
     }
 
+    // 通信するときは、画面に入力されている最新のURLを読み取る
     function getUrl() {
-      return MY_GAS_URL;
+      return document.getElementById('gasUrl').value.trim();
     }
 
     // START / STOP 送信
@@ -102,7 +111,7 @@
       } catch (e) { alert('通信エラーが発生しました'); }
     }
 
-    // 最新5件の読み込み（バグ修正版）
+    // 最新5件の読み込み
     async function loadLatest() {
       const url = getUrl();
       if (!url) return;
@@ -123,26 +132,24 @@
               card.onclick = () => openModal(row.id);
             }
             
-            // --- 【追加】世界標準時（Z付き）を日本時間の「HH:mm:ss」に変換する処理 ---
+            // 世界標準時（Z付き）を日本時間の「HH:mm:ss」に変換する処理
             const formatTime = (timeStr) => {
               if (!timeStr) return '';
               const d = new Date(timeStr);
-              if (isNaN(d.getTime())) return timeStr.split(' ')[1] || timeStr; // 変換できない場合はそのまま
+              if (isNaN(d.getTime())) return timeStr.split(' ')[1] || timeStr;
               return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             };
 
             const startTime = formatTime(row.start);
             const endTime = row.end ? formatTime(row.end) : '計測中...';
-            // -----------------------------------------------------------------
 
-            // --- 【修正】実作業時間にすでに「分」が入っている場合はそのまま、ない場合（空欄）は「-分」にする ---
+            // 実作業時間にすでに「分」が入っている場合はそのまま、ない場合（空欄）は「-分」にする
             let actualTime = row.actual || '-分';
             if (row.actual && String(row.actual).includes('分')) {
               actualTime = row.actual;
             } else if (row.actual) {
-              actualTime = row.actual + '分'; // ★ここを追加：シート側が数字だけなら、画面で「分」を足す
+              actualTime = row.actual + '分';
             }
-            // -----------------------------------------------------------------
             
             card.innerHTML = `
               <div class="flex justify-between font-bold text-xs text-gray-400 mb-1">
@@ -163,15 +170,16 @@
       document.getElementById('targetId').value = id;
       document.getElementById('taskName').value = '';
       document.getElementById('estimateTime').value = '';
-      updateButtons(''); // ボタンの色をリセット
+      updateButtons('');
       document.getElementById('modal').classList.remove('hidden');
     }
 
+    // モーダルを閉じる
     function closeModal() {
       document.getElementById('modal').classList.add('hidden');
     }
 
-    // ボタンが押された時の処理
+    // 見込み時間ボタンが押された時の処理
     function setEstimate(val) {
       document.getElementById('estimateTime').value = val;
       updateButtons(val);
@@ -182,7 +190,7 @@
       updateButtons(e.target.value);
     });
 
-    // 選択されたボタンの色を変える処理（ボタンが増えても自動で判定されます）
+    // 選択されたボタンの色を変える処理
     function updateButtons(val) {
       document.querySelectorAll('.est-btn').forEach(b => {
         if (b.innerText == val) {
