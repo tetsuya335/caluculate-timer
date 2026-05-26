@@ -76,7 +76,7 @@
 
   <script>
     // デフォルトの初期値URL（未保存のとき最初に表示されるURL）
-    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwb_3S35E2QGdDFsbW8w2H2IfOJ8DHepx4nwmrEAhXz9Xh14UyWxZT-78v6nH0FeEgcJw/exec';
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxt015sK_zqRzMHT5qbBi3gG6rQmVG5GeodLAUIIZkwMjeogy22MX9JlIFguUzTs3Ix_w/exec';
 
     // ページ読み込み時に自動でデータを読み込む
     window.onload = () => {
@@ -157,7 +157,7 @@
                 <span class="${isUnclassified ? 'text-amber-600' : 'text-gray-500'}">${actualTime}</span>
               </div>
               <div class="text-sm font-semibold">${row.task || '⚠️ 未分類（タップして仕分け）'}</div>
-              ${row.estimate ? `<div class="text-xs text-gray-500 mt-1">🎯 見込み: ${row.estimate}</div>` : ''}
+              ${row.estimate ? \`<div class="text-xs text-gray-500 mt-1">🎯 見込み: ${row.estimate}分</div>\` : ''}
             `;
             container.appendChild(card);
           });
