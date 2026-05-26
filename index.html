@@ -11,13 +11,11 @@
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-6 space-y-6">
     <h1 class="text-xl font-bold text-center border-b pb-3 text-indigo-600">🕒 ルラップ・リンカー</h1>
 
-    <!-- GAS URL 設定欄（最初だけ入力すればOK） -->
     <div class="space-y-1">
       <label class="text-xs font-semibold text-gray-500">GAS WebアプリURL</label>
       <input type="text" id="gasUrl" class="w-full p-2 border rounded-lg text-xs" placeholder="https://script.google.com/macros/s/.../exec" onchange="saveUrl()">
     </div>
 
-    <!-- タイマー操作（スマホ代替用） -->
     <div class="grid grid-cols-2 gap-4">
       <button onclick="sendAction('START')" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold py-4 rounded-xl shadow-md transition text-lg">
         ▶ START
@@ -27,12 +25,10 @@
       </button>
     </div>
 
-    <!-- 更新・読み込みボタン -->
     <button onclick="loadLatest()" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded-lg text-sm font-medium transition">
       🔄 履歴を更新する
     </button>
 
-    <!-- 履歴・仕分けエリア -->
     <div class="space-y-3">
       <h2 class="font-bold text-sm text-gray-600">📌 最近の作業ログ（最新5件）</h2>
       <div id="logList" class="space-y-3 text-sm">
@@ -41,7 +37,6 @@
     </div>
   </div>
 
-  <!-- 仕分け用ポップアップ（モーダル） -->
   <div id="modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
       <h3 class="font-bold text-lg text-indigo-600">📝 作業内容の仕分け</h3>
@@ -53,14 +48,23 @@
       </div>
 
       <div class="space-y-1">
-        <label class="text-xs font-bold text-gray-500">見込み時間</label>
-        <div class="grid grid-cols-4 gap-2 text-xs">
-          <button type="button" onclick="setEstimate('15分')" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">15分</button>
-          <button type="button" onclick="setEstimate('30分')" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">30分</button>
-          <button type="button" onclick="setEstimate('45分')" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">45分</button>
-          <button type="button" onclick="setEstimate('60分')" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">60分</button>
+        <label class="text-xs font-bold text-gray-500">見込み時間（分）</label>
+        
+        <div class="flex items-center space-x-2">
+          <input type="number" id="estimateTime" step="0.1" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none text-right" placeholder="例: 15">
+          <span class="text-sm font-bold text-gray-600">分</span>
         </div>
-        <input type="hidden" id="estimateTime">
+
+        <div class="grid grid-cols-4 gap-2 text-xs mt-2">
+          <button type="button" onclick="setEstimate(15)" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">15</button>
+          <button type="button" onclick="setEstimate(30)" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">30</button>
+          <button type="button" onclick="setEstimate(45)" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">45</button>
+          <button type="button" onclick="setEstimate(60)" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">60</button>
+          <button type="button" onclick="setEstimate(75)" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">75</button>
+          <button type="button" onclick="setEstimate(90)" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">90</button>
+          <button type="button" onclick="setEstimate(120)" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">120</button>
+          <button type="button" onclick="setEstimate(180)" class="est-btn bg-gray-100 p-2 rounded-lg font-medium">180</button>
+        </div>
       </div>
 
       <div class="flex space-x-3 pt-2">
@@ -71,38 +75,21 @@
   </div>
 
   <script>
-    // ページ読み込み時に保存されたURLを復元
-   
-    const MY_GAS_URL = 'https://script.google.com/macros/s/AKfycbxt015sK_zqRzMHT5qbBi3gG6rQmVG5GeodLAUIIZkwMjeogy22MX9JlIFguUzTs3Ix_w/exec'
-// ページ読み込み時に自動でデータを読み込む
+    const MY_GAS_URL = 'https://script.google.com/macros/s/AKfycbxt015sK_zqRzMHT5qbBi3gG6rQmVG5GeodLAUIIZkwMjeogy22MX9JlIFguUzTs3Ix_w/exec';
+
+    // ページ読み込み時に自動でデータを読み込む
     window.onload = () => {
       document.getElementById('gasUrl').value = MY_GAS_URL;
       loadLatest();
     };
 
     function saveUrl() {
-      // ハードコードするため、この関数は空っぽでOKになります
+      // ハードコードするため、この関数は空っぽでOK
     }
 
     function getUrl() {
       return MY_GAS_URL;
     }
-//    window.onload = () => {
-//  
-//    const savedUrl = localStorage.getItem('gas_url');
-//      if (savedUrl) {
-//        document.getElementById('gasUrl').value = savedUrl;
-//        loadLatest();
-//      }
-//    };
-
-//    function saveUrl() {
-//      localStorage.setItem('gas_url', document.getElementById('gasUrl').value);
-//    }
-
-//    function getUrl() {
-//      return document.getElementById('gasUrl').value;
-//    }
 
     // START / STOP 送信
     async function sendAction(event) {
@@ -131,19 +118,19 @@
           result.data.forEach(row => {
             const isUnclassified = !row.task;
             const card = document.createElement('div');
-            // 未分類のものはオレンジの枠線で目立たせる
             card.className = `p-3 rounded-xl border transition ${isUnclassified ? 'border-amber-400 bg-amber-50/50 cursor-pointer hover:bg-amber-100/50' : 'border-gray-200 bg-gray-50'}`;
             if (isUnclassified) {
               card.onclick = () => openModal(row.id);
             }
             
+            // UI上の表示だけ「分」を付ける
             card.innerHTML = `
               <div class="flex justify-between font-bold text-xs text-gray-400 mb-1">
                 <span>⏱ ${row.start.split(' ')[1] || row.start} 〜 ${row.end ? row.end.split(' ')[1] : '計測中...'}</span>
-                <span class="${isUnclassified ? 'text-amber-600' : 'text-gray-500'}">${row.actual || '-分'}</span>
+                <span class="${isUnclassified ? 'text-amber-600' : 'text-gray-500'}">${row.actual ? row.actual + '分' : '-分'}</span>
               </div>
               <div class="text-sm font-semibold">${row.task || '⚠️ 未分類（タップして仕分け）'}</div>
-              ${row.estimate ? `<div class="text-xs text-gray-500 mt-1">🎯 見込み: ${row.estimate}</div>` : ''}
+              ${row.estimate ? `<div class="text-xs text-gray-500 mt-1">🎯 見込み: ${row.estimate}分</div>` : ''}
             `;
             container.appendChild(card);
           });
@@ -156,7 +143,7 @@
       document.getElementById('targetId').value = id;
       document.getElementById('taskName').value = '';
       document.getElementById('estimateTime').value = '';
-      document.querySelectorAll('.est-btn').forEach(b => b.className = 'est-btn bg-gray-100 p-2 rounded-lg font-medium');
+      updateButtons(''); // ボタンの色をリセット
       document.getElementById('modal').classList.remove('hidden');
     }
 
@@ -164,10 +151,21 @@
       document.getElementById('modal').classList.add('hidden');
     }
 
+    // ボタンが押された時の処理
     function setEstimate(val) {
       document.getElementById('estimateTime').value = val;
+      updateButtons(val);
+    }
+
+    // 手入力で数値が変更された時の処理
+    document.getElementById('estimateTime').addEventListener('input', function(e) {
+      updateButtons(e.target.value);
+    });
+
+    // 選択されたボタンの色を変える処理（ボタンが増えても自動で判定されます）
+    function updateButtons(val) {
       document.querySelectorAll('.est-btn').forEach(b => {
-        if (b.innerText === val) {
+        if (b.innerText == val) {
           b.className = 'est-btn bg-indigo-600 text-white p-2 rounded-lg font-bold';
         } else {
           b.className = 'est-btn bg-gray-100 p-2 rounded-lg font-medium';
