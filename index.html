@@ -35,7 +35,13 @@
     </div>
     
     <div class="space-y-3">
-      <h2 class="font-bold text-sm text-gray-600">📌 最近の作業ログ（最新5件）</h2>
+      <div class="flex justify-between items-center">
+        <h2 class="font-bold text-sm text-gray-600">📌 最近の作業ログ（最新5件）</h2>
+        <div class="flex items-center bg-gray-200 p-0.5 rounded-lg text-xs font-bold">
+          <button onclick="setDisplayMode('actual')" id="btnActual" class="px-2 py-1 rounded-md bg-white shadow-sm text-gray-800 transition">実績</button>
+          <button onclick="setDisplayMode('remaining')" id="btnRemaining" class="px-2 py-1 rounded-md text-gray-500 hover:text-gray-800 transition">残り</button>
+        </div>
+      </div>
       <div id="logList" class="space-y-3 text-sm">
         <p class="text-gray-400 text-center py-4">読み込み中...</p>
       </div>
@@ -47,9 +53,19 @@
       <h3 class="font-bold text-lg text-indigo-600">📝 作業内容の仕分け</h3>
       <input type="hidden" id="targetId">
       
+      <div id="historyArea" class="hidden space-y-1">
+        <label class="text-xs font-bold text-gray-400">履歴からワンタップ入力</label>
+        <div id="historyChips" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-gray-50 rounded-lg border border-dashed border-gray-200"></div>
+      </div>
+
       <div class="space-y-1">
         <label class="text-xs font-bold text-gray-500">作業内容</label>
         <input type="text" id="taskName" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" placeholder="例: 案件Aのプログラミング">
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-xs font-bold text-gray-500">詳細</label>
+        <input type="text" id="taskDetail" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" placeholder="例: 不具合のデバッグ確認、5S環境整備など">
       </div>
 
       <div class="space-y-1">
@@ -80,11 +96,13 @@
   </div>
 
   <script>
-    // デフォルトの初期値URL
     const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwTYs2ZePHP24mkz-TXB5UZYPijSmxB2ejyWWbweQ3VcNOh1WJ0Ua_pY8AcyB2f0dQBcw/exec';
+    
+    let latestLogData = [];  
+    let displayMode = 'actual'; 
+    let refreshInterval = null; 
 
     window.onload = () => {
-      // 保存されたURLがあれば読み込み、なければデフォルトを使う
       const savedUrl = localStorage.getItem('saved_gas_url') || DEFAULT_GAS_URL;
       document.getElementById('gasUrl').value = savedUrl;
       loadLatest();
@@ -102,6 +120,20 @@
       return document.getElementById('gasUrl').value.trim();
     }
 
+    function setDisplayMode(mode) {
+      displayMode = mode;
+      const btnActual = document.getElementById('btnActual');
+      const btnRemaining = document.getElementById('btnRemaining');
+      if (mode === 'actual') {
+        btnActual.className = 'px-2 py-1 rounded-md bg-white shadow-sm text-gray-800 transition';
+        btnRemaining.className = 'px-2 py-1 rounded-md text-gray-500 hover:text-gray-800 transition';
+      } else {
+        btnActual.className = 'px-2 py-1 rounded-md text-gray-500 hover:text-gray-800 transition';
+        btnRemaining.className = 'px-2 py-1 rounded-md bg-white shadow-sm text-gray-800 transition';
+      }
+      renderLogList();
+    }
+
     async function sendAction(event) {
       const url = getUrl();
       if (!url) return alert('GASのURLを入力してください');
@@ -112,93 +144,149 @@
       } catch (e) { alert('通信エラーが発生しました'); }
     }
 	
-	// 本日の合計時間を取得して表示する関数
     async function loadTodayTotal() {
       const url = getUrl();
       if (!url) return;
-      
       const displayElement = document.getElementById('todayTotalTime');
       displayElement.innerText = '計算中...';
-
       try {
-        const res = await fetch(url, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'get_today_total' })
-        });
+        const res = await fetch(url, { method: 'POST', body: JSON.stringify({ action: 'get_today_total' }) });
         const result = await res.json();
-        
         if (result.status === 'success') {
           displayElement.innerText = `${result.totalHours} 時間`;
         } else {
           displayElement.innerText = 'エラー';
         }
-      } catch (e) {
-        displayElement.innerText = '取得失敗';
-      }
+      } catch (e) { displayElement.innerText = '取得失敗'; }
     }
 
     async function loadLatest() {
       const url = getUrl();
       if (!url) return;
-
 	  
-      // ↓↓↓ ここに1行追加します ↓↓↓
       loadTodayTotal();
-      
       const container = document.getElementById('logList');
-      container.innerHTML = '<p class="text-gray-400 text-center py-4">読み込み中...</p>';
+      if (latestLogData.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-4">読み込み中...</p>';
+      }
       
       try {
         const res = await fetch(url, { method: 'POST', body: JSON.stringify({ action: 'get_latest' }) });
         const result = await res.json();
-        
         if (result.status === 'success') {
-          container.innerHTML = '';
-          result.data.forEach(row => {
-            const isUnclassified = !row.task;
-            const card = document.createElement('div');
-            card.className = `p-3 rounded-xl border transition ${isUnclassified ? 'border-amber-400 bg-amber-50/50 cursor-pointer hover:bg-amber-100/50' : 'border-gray-200 bg-gray-50'}`;
-            if (isUnclassified) {
-              card.onclick = () => openModal(row.id);
-            }
-            
-            const formatTime = (timeStr) => {
-              if (!timeStr) return '';
-              const d = new Date(timeStr);
-              if (isNaN(d.getTime())) return timeStr.split(' ')[1] || timeStr; 
-              return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            };
-
-            const startTime = formatTime(row.start);
-            const endTime = row.end ? formatTime(row.end) : '計測中...';
-
-            let actualTime = row.actual || '-分';
-            if (row.actual && String(row.actual).includes('分')) {
-              actualTime = row.actual;
-            } else if (row.actual) {
-              actualTime = row.actual + '分';
-              //actualTime = row.actual; 
-            }
-            
-            card.innerHTML = `
-              <div class="flex justify-between font-bold text-xs text-gray-400 mb-1">
-                <span>⏱ ${startTime} 〜 ${endTime}</span>
-                <span class="${isUnclassified ? 'text-amber-600' : 'text-gray-500'}">${actualTime}</span>
-              </div>
-              <div class="text-sm font-semibold">${row.task || '⚠️ 未分類（タップして仕分け）'}</div>
-              ${row.estimate ? `<div class="text-xs text-gray-500 mt-1">🎯 見込み: ${row.estimate}分</div>` : ''}
-            `;
-            container.appendChild(card);
-          });
+          latestLogData = result.data;
+          renderLogList();
+          
+          if (!refreshInterval) {
+            refreshInterval = setInterval(renderLogList, 1000);
+          }
         }
-      } catch (e) { container.innerHTML = '<p class="text-red-500 text-center py-4">データの取得に失敗しました。URLを確認してください。</p>'; }
+      } catch (e) { container.innerHTML = '<p class="text-red-500 text-center py-4">データの取得に失敗しました。</p>'; }
+    }
+
+    function renderLogList() {
+      const container = document.getElementById('logList');
+      if (!latestLogData || latestLogData.length === 0) return;
+
+      container.innerHTML = '';
+      latestLogData.forEach(row => {
+        const isUnclassified = !row.task;
+        
+        const formatTime = (timeStr) => {
+          if (!timeStr) return '';
+          const d = new Date(timeStr);
+          if (isNaN(d.getTime())) return timeStr.split(' ')[1] || timeStr; 
+          return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        };
+
+        const startTime = formatTime(row.start);
+        const endTime = row.end ? formatTime(row.end) : '計測中...';
+
+        let elapsedMins = 0;
+        if (row.end) {
+          elapsedMins = parseFloat(row.actual) || 0;
+        } else {
+          const startMs = new Date(row.start).getTime();
+          const nowMs = new Date().getTime();
+          elapsedMins = (nowMs - startMs) / (1000 * 60);
+        }
+
+        let timeDisplay = '';
+        let isOverdue = false;
+
+        if (displayMode === 'actual') {
+          if (row.end) {
+            timeDisplay = String(row.actual).includes('分') ? row.actual : row.actual + '分';
+          } else {
+            const totalSec = Math.floor(elapsedMins * 60);
+            timeDisplay = `${Math.floor(totalSec / 60)}分${totalSec % 60}秒`;
+          }
+        } else {
+          if (row.estimate) {
+            const estMins = parseFloat(row.estimate) || 0;
+            const remainingMins = estMins - elapsedMins;
+
+            if (row.end) {
+              const diff = Math.round(remainingMins * 10) / 10;
+              if (diff >= 0) {
+                timeDisplay = `あと ${diff}分`;
+              } else {
+                timeDisplay = `超過 ${Math.abs(diff)}分`;
+                isOverdue = true;
+              }
+            } else {
+              const totalSec = Math.round(remainingMins * 60);
+              if (totalSec >= 0) {
+                timeDisplay = `あと ${Math.floor(totalSec / 60)}分${totalSec % 60}秒`;
+              } else {
+                const absSec = Math.abs(totalSec);
+                timeDisplay = `超過 ${Math.floor(absSec / 60)}分${absSec % 60}秒`;
+                isOverdue = true;
+              }
+            }
+          } else {
+            if (row.end) {
+              timeDisplay = String(row.actual).includes('分') ? row.actual : row.actual + '分';
+            } else {
+              const totalSec = Math.floor(elapsedMins * 60);
+              timeDisplay = `${Math.floor(totalSec / 60)}分${totalSec % 60}秒`;
+            }
+          }
+        }
+
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-xl border transition ${isUnclassified ? 'border-amber-400 bg-amber-50/50 cursor-pointer hover:bg-amber-100/50' : 'border-gray-200 bg-gray-50'}`;
+        if (isUnclassified) {
+          card.onclick = () => openModal(row.id);
+        }
+        
+        const timeColorClass = isUnclassified 
+          ? 'text-amber-600' 
+          : (isOverdue ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold');
+
+        card.innerHTML = `
+          <div class="flex justify-between font-bold text-xs text-gray-400 mb-1">
+            <span>⏱ ${startTime} 〜 ${endTime}</span>
+            <span class="${timeColorClass}">${timeDisplay}</span>
+          </div>
+          <div class="text-sm font-semibold">${row.task || '⚠️ 未分類（タップして仕分け）'}</div>
+          ${row.detail ? `<div class="text-xs text-gray-500 mt-0.5 bg-gray-200/50 px-1.5 py-0.5 rounded inline-block">📝 ${row.detail}</div>` : ''}
+          ${row.estimate ? `<div class="text-xs text-gray-400 mt-1">🎯 見込み: ${row.estimate}分</div>` : ''}
+        `;
+        container.appendChild(card);
+      });
     }
 
     function openModal(id) {
       document.getElementById('targetId').value = id;
       document.getElementById('taskName').value = '';
+      document.getElementById('taskDetail').value = ''; 
       document.getElementById('estimateTime').value = '';
       updateButtons('');
+      
+      // ★モーダルを開いた時に履歴チップを生成
+      renderHistoryChips();
+      
       document.getElementById('modal').classList.remove('hidden');
     }
 
@@ -225,10 +313,58 @@
       });
     }
 
+    // ★新設：確定した内容をローカル履歴に最大6件保存する（重複は自動で先頭に並び替え）
+    function saveToInputHistory(task, detail, estimate) {
+      let history = JSON.parse(localStorage.getItem('linker_task_history') || '[]');
+      history = history.filter(item => !(item.task === task && item.detail === detail));
+      history.unshift({ task, detail, estimate });
+      if (history.length > 6) history.pop();
+      localStorage.setItem('linker_task_history', JSON.stringify(history));
+    }
+
+    // ★新設：履歴チップを生成・描画する
+    function renderHistoryChips() {
+      const container = document.getElementById('historyChips');
+      const area = document.getElementById('historyArea');
+      const history = JSON.parse(localStorage.getItem('linker_task_history') || '[]');
+      
+      if (history.length === 0) {
+        area.classList.add('hidden');
+        return;
+      }
+      
+      area.classList.remove('hidden');
+      container.innerHTML = '';
+      
+      history.forEach(item => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-[11px] bg-white hover:bg-indigo-50 border border-gray-200 text-gray-700 px-2 py-1 rounded-md transition text-left truncate max-w-full block shadow-sm active:scale-95';
+        
+        let label = item.task;
+        if (item.detail) label += ` (${item.detail})`;
+        
+        btn.innerText = label;
+        btn.onclick = () => {
+          document.getElementById('taskName').value = item.task;
+          document.getElementById('taskDetail').value = item.detail || '';
+          if (item.estimate) {
+            document.getElementById('estimateTime').value = item.estimate;
+            updateButtons(item.estimate);
+          } else {
+            document.getElementById('estimateTime').value = '';
+            updateButtons('');
+          }
+        };
+        container.appendChild(btn);
+      });
+    }
+
     async function submitUpdate() {
       const url = getUrl();
       const id = document.getElementById('targetId').value;
-      const task = document.getElementById('taskName').value;
+      const task = document.getElementById('taskName').value.trim();
+      const detail = document.getElementById('taskDetail').value.trim(); 
       const estimate = document.getElementById('estimateTime').value;
       
       if (!task) return alert('作業内容を入力してください');
@@ -236,10 +372,12 @@
       try {
         const res = await fetch(url, {
           method: 'POST',
-          body: JSON.stringify({ action: 'update', id: id, task: task, estimate: estimate })
+          body: JSON.stringify({ action: 'update', id: id, task: task, detail: detail, estimate: estimate }) 
         });
         const data = await res.json();
         if (data.status === 'updated') {
+          // ★成功時に履歴にストック
+          saveToInputHistory(task, detail, estimate);
           closeModal();
           loadLatest();
         }
