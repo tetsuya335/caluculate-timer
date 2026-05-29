@@ -260,9 +260,17 @@
           card.onclick = () => openModal(row.id);
         }
         
-        const timeColorClass = isUnclassified 
-          ? 'text-amber-600' 
-          : (isOverdue ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold');
+        // ★修正点：計測中のアクティブな状態を「青色(Blue)」、無事終了したものを「緑色(Emerald)」に分離
+        let timeColorClass = '';
+        if (isUnclassified) {
+          timeColorClass = 'text-amber-600'; // 未分類（黄色）
+        } else if (isOverdue) {
+          timeColorClass = 'text-rose-600 font-bold'; // 超過（赤色）
+        } else if (!row.end) {
+          timeColorClass = 'text-blue-600 font-bold'; // ★進行中・計測中（青色）
+        } else {
+          timeColorClass = 'text-emerald-600 font-bold'; // ★正常終了（緑色）
+        }
 
         card.innerHTML = `
           <div class="flex justify-between font-bold text-xs text-gray-400 mb-1">
@@ -283,10 +291,7 @@
       document.getElementById('taskDetail').value = ''; 
       document.getElementById('estimateTime').value = '';
       updateButtons('');
-      
-      // ★モーダルを開いた時に履歴チップを生成
       renderHistoryChips();
-      
       document.getElementById('modal').classList.remove('hidden');
     }
 
@@ -313,7 +318,6 @@
       });
     }
 
-    // ★新設：確定した内容をローカル履歴に最大6件保存する（重複は自動で先頭に並び替え）
     function saveToInputHistory(task, detail, estimate) {
       let history = JSON.parse(localStorage.getItem('linker_task_history') || '[]');
       history = history.filter(item => !(item.task === task && item.detail === detail));
@@ -322,7 +326,6 @@
       localStorage.setItem('linker_task_history', JSON.stringify(history));
     }
 
-    // ★新設：履歴チップを生成・描画する
     function renderHistoryChips() {
       const container = document.getElementById('historyChips');
       const area = document.getElementById('historyArea');
@@ -376,7 +379,6 @@
         });
         const data = await res.json();
         if (data.status === 'updated') {
-          // ★成功時に履歴にストック
           saveToInputHistory(task, detail, estimate);
           closeModal();
           loadLatest();
