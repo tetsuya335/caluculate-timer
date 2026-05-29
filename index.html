@@ -137,6 +137,24 @@
     async function sendAction(event) {
       const url = getUrl();
       if (!url) return alert('GASのURLを入力してください');
+
+      // === 状態ガードの追加 ===
+      // データの初回読み込みが完了している場合のみチェックを実行
+      if (latestLogData && latestLogData.length > 0) {
+        // 配列の中に1つでも end（終了時刻）がない行があれば「計測中」とみなす
+        const isTracking = latestLogData.some(row => !row.end);
+
+        if (event === 'START' && isTracking) {
+          console.warn('すでに計測中のため、START送信をブロックしました。');
+          return; // 処理を中断
+        }
+        if (event === 'STOP' && !isTracking) {
+          console.warn('計測中ではないため、STOP送信をブロックしました。');
+          return; // 処理を中断
+        }
+      }
+      // =======================
+
       try {
         const res = await fetch(url, { method: 'POST', body: JSON.stringify({ action: 'append', event: event }) });
         await res.json();
