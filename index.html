@@ -96,7 +96,8 @@
   </div>
 
   <script>
-    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwTYs2ZePHP24mkz-TXB5UZYPijSmxB2ejyWWbweQ3VcNOh1WJ0Ua_pY8AcyB2f0dQBcw/exec';
+    // ★変更点①：秘密のURLを削除して空にしました
+    const DEFAULT_GAS_URL = '';
     
     let latestLogData = [];  
     let displayMode = 'actual'; 
@@ -105,6 +106,13 @@
     window.onload = () => {
       const savedUrl = localStorage.getItem('saved_gas_url') || DEFAULT_GAS_URL;
       document.getElementById('gasUrl').value = savedUrl;
+      
+      // ★変更点②：URLがまだ設定されていない場合の親切な画面表示
+      if (!savedUrl) {
+        document.getElementById('logList').innerHTML = '<p class="text-amber-600 font-medium text-center py-4">⚠️ 上部の入力欄にGASのWebアプリURLを設定してください。</p>';
+        return;
+      }
+      
       loadLatest();
     };
 
@@ -138,22 +146,19 @@
       const url = getUrl();
       if (!url) return alert('GASのURLを入力してください');
 
-      // === 状態ガードの追加 ===
-      // データの初回読み込みが完了している場合のみチェックを実行
+      // 状態ガード（連打・二度押しインターロック）
       if (latestLogData && latestLogData.length > 0) {
-        // 配列の中に1つでも end（終了時刻）がない行があれば「計測中」とみなす
         const isTracking = latestLogData.some(row => !row.end);
 
         if (event === 'START' && isTracking) {
           console.warn('すでに計測中のため、START送信をブロックしました。');
-          return; // 処理を中断
+          return;
         }
         if (event === 'STOP' && !isTracking) {
           console.warn('計測中ではないため、STOP送信をブロックしました。');
-          return; // 処理を中断
+          return;
         }
       }
-      // =======================
 
       try {
         const res = await fetch(url, { method: 'POST', body: JSON.stringify({ action: 'append', event: event }) });
@@ -278,16 +283,15 @@
           card.onclick = () => openModal(row.id);
         }
         
-        // ★修正点：計測中のアクティブな状態を「青色(Blue)」、無事終了したものを「緑色(Emerald)」に分離
         let timeColorClass = '';
         if (isUnclassified) {
-          timeColorClass = 'text-amber-600'; // 未分類（黄色）
+          timeColorClass = 'text-amber-600';
         } else if (isOverdue) {
-          timeColorClass = 'text-rose-600 font-bold'; // 超過（赤色）
+          timeColorClass = 'text-rose-600 font-bold';
         } else if (!row.end) {
-          timeColorClass = 'text-blue-600 font-bold'; // ★進行中・計測中（青色）
+          timeColorClass = 'text-blue-600 font-bold';
         } else {
-          timeColorClass = 'text-emerald-600 font-bold'; // ★正常終了（緑色）
+          timeColorClass = 'text-emerald-600 font-bold';
         }
 
         card.innerHTML = `
